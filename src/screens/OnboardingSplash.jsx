@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
 import DayFlowLogo from '../components/DayFlowLogo';
 
 const OnboardingSplash = () => {
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
     const handleGetStarted = () => {
         navigate('/auth');
@@ -52,22 +49,14 @@ const OnboardingSplash = () => {
                 <section className="w-full flex flex-col gap-md pb-xl fade-in" style={{ animationDelay: '0.5s' }}>
                     <button 
                         onClick={handleGetStarted}
-                        disabled={loading}
-                        className="w-full bg-primary hover:bg-on-surface-variant text-on-primary font-label-md text-label-md py-md px-lg rounded-full transition-colors duration-200 flex items-center justify-center shadow-sm disabled:opacity-60"
+                        className="w-full bg-primary hover:bg-on-surface-variant text-on-primary font-label-md text-label-md py-md px-lg rounded-full transition-colors duration-200 flex items-center justify-center shadow-sm"
                     >
-                        {loading ? (
-                            <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
-                        ) : (
-                            <>
-                                Get Started
-                                <span className="material-symbols-outlined ml-xs text-xl">arrow_forward</span>
-                            </>
-                        )}
+                        Get Started
+                        <span className="material-symbols-outlined ml-xs text-xl">arrow_forward</span>
                     </button>
                     <button 
                         onClick={handleGetStarted}
-                        disabled={loading}
-                        className="w-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md py-md px-lg rounded-full transition-colors duration-200 shadow-sm border border-outline-variant disabled:opacity-60"
+                        className="w-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md py-md px-lg rounded-full transition-colors duration-200 shadow-sm border border-outline-variant"
                     >
                         Log In
                     </button>
@@ -77,11 +66,7 @@ const OnboardingSplash = () => {
                             <a className="text-primary underline hover:text-on-surface-variant transition-colors" href="#">Terms of Service</a>
                         </p>
                     </div>
-                    {error && (
-                        <div className="bg-error-container text-on-error-container text-center font-body-sm text-body-sm px-md py-sm rounded-xl">
-                            ⚠️ {error}
-                        </div>
-                    )}
+
                 </section>
             </main>
         </div>

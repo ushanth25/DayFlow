@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { auth } from '../lib/firebase';
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+} from 'firebase/auth';
 import DayFlowLogo from '../components/DayFlowLogo';
 
 const AuthScreen = () => {
@@ -15,10 +20,11 @@ const AuthScreen = () => {
 
     // If already logged in, go to home
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) navigate('/home');
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) navigate('/home');
         });
-    }, []);
+        return () => unsubscribe();
+    }, [navigate]);
 
     const handleSignUp = async (e) => {
         e.preventDefault();
@@ -35,13 +41,13 @@ const AuthScreen = () => {
         }
 
         setLoading(true);
-        const { error } = await supabase.auth.signUp({ email, password });
-        setLoading(false);
-
-        if (error) {
-            setError(error.message);
-        } else {
-            setSuccess('Account created! Check your email to confirm, or log in now if confirmation is disabled.');
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged will detect the new user and redirect to /home
+        } catch (err) {
+            setError(err.message.replace('Firebase: ', ''));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -51,13 +57,13 @@ const AuthScreen = () => {
         setSuccess('');
         setLoading(true);
 
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        setLoading(false);
-
-        if (error) {
-            setError(error.message);
-        } else {
-            navigate('/home');
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged will detect sign-in and redirect to /home
+        } catch (err) {
+            setError(err.message.replace('Firebase: ', ''));
+        } finally {
+            setLoading(false);
         }
     };
 

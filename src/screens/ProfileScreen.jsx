@@ -1,30 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
-import { supabase } from '../lib/supabaseClient';
+import { auth, db } from '../lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, getDocs, query } from 'firebase/firestore';
 import DayFlowLogo from '../components/DayFlowLogo';
 
 const ProfileScreen = () => {
     const [tasks, setTasks] = useState([]);
     const [completedTasksCount, setCompletedTasksCount] = useState(0);
-
-    useEffect(() => {
-        supabase.from('tasks').select('*').then(({ data }) => {
-            if (data) {
-                setTasks(data);
-                setCompletedTasksCount(data.filter(t => t.completed).length);
-            }
-        });
-    }, []);
-
+    const [remindersCount, setRemindersCount] = useState(0);
+    const [user, setUser] = useState(null);
     const [themeDark, setThemeDark] = useState(false);
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const navigate = useNavigate();
 
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                setUser(firebaseUser);
+
+                // Fetch tasks
+                const taskSnap = await getDocs(query(collection(db, 'users', firebaseUser.uid, 'tasks')));
+                const taskList = taskSnap.docs.map(d => d.data());
+                setTasks(taskList);
+                setCompletedTasksCount(taskList.filter(t => t.completed).length);
+
+                // Fetch reminders count
+                const reminderSnap = await getDocs(query(collection(db, 'users', firebaseUser.uid, 'reminders')));
+                setRemindersCount(reminderSnap.size);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
     const handleSignOut = async () => {
-        await supabase.auth.signOut();
+        await signOut(auth);
         navigate('/');
     };
+
+    const initials = user?.email
+        ? user.email.slice(0, 2).toUpperCase()
+        : 'U';
 
     return (
         <div className="text-on-surface bg-surface min-h-screen pb-32">
@@ -36,7 +53,7 @@ const ProfileScreen = () => {
                         <h1 className="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">DayFlow</h1>
                     </div>
                     <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-label-sm">
-                        SK
+                        {initials}
                     </div>
                 </div>
             </header>
@@ -45,10 +62,10 @@ const ProfileScreen = () => {
                 {/* Profile Header */}
                 <section className="flex flex-col items-center justify-center text-center mb-xl">
                     <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-on-primary font-display-lg mb-md">
-                        SK
+                        {initials}
                     </div>
-                    <h2 className="font-headline-md text-headline-md mb-xs">Sarah K.</h2>
-                    <p className="font-body-sm text-body-sm text-secondary">sarah@dayflow.com</p>
+                    <h2 className="font-headline-md text-headline-md mb-xs">{user?.displayName || 'My Account'}</h2>
+                    <p className="font-body-sm text-body-sm text-secondary">{user?.email}</p>
                 </section>
 
                 {/* Stats Row */}
@@ -58,12 +75,12 @@ const ProfileScreen = () => {
                         <span className="font-label-sm text-label-sm text-secondary">Tasks done</span>
                     </div>
                     <div className="bg-surface-container-lowest border border-outline-variant p-md flex flex-col items-center justify-center rounded-lg">
-                        <span className="font-headline-md text-headline-md text-primary">12</span>
-                        <span className="font-label-sm text-label-sm text-secondary">Streak</span>
+                        <span className="font-headline-md text-headline-md text-primary">{tasks.length}</span>
+                        <span className="font-label-sm text-label-sm text-secondary">Total tasks</span>
                     </div>
                     <div className="bg-surface-container-lowest border border-outline-variant p-md flex flex-col items-center justify-center rounded-lg">
-                        <span className="font-headline-md text-headline-md text-primary">8</span>
-                        <span className="font-label-sm text-label-sm text-secondary">Reminders set</span>
+                        <span className="font-headline-md text-headline-md text-primary">{remindersCount}</span>
+                        <span className="font-label-sm text-label-sm text-secondary">Reminders</span>
                     </div>
                 </section>
 
@@ -80,18 +97,18 @@ const ProfileScreen = () => {
                                     <span className="font-body-lg text-body-lg">Theme</span>
                                 </div>
                                 <div className="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
-                                    <input 
-                                        type="checkbox" 
-                                        name="toggle" 
-                                        id="toggle-theme" 
-                                        checked={themeDark} 
+                                    <input
+                                        type="checkbox"
+                                        name="toggle"
+                                        id="toggle-theme"
+                                        checked={themeDark}
                                         onChange={() => setThemeDark(!themeDark)}
-                                        className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-outline-variant checked:bg-primary checked:right-0 right-4 duration-200" 
+                                        className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-outline-variant checked:bg-primary checked:right-0 right-4 duration-200"
                                     />
                                     <label htmlFor="toggle-theme" className="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-high cursor-pointer"></label>
                                 </div>
                             </div>
-                            
+
                             {/* Notifications Toggle */}
                             <div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors group">
                                 <div className="flex items-center gap-md">
@@ -99,32 +116,20 @@ const ProfileScreen = () => {
                                     <span className="font-body-lg text-body-lg">Notifications</span>
                                 </div>
                                 <div className="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
-                                    <input 
-                                        type="checkbox" 
-                                        name="toggle" 
-                                        id="toggle-notif" 
+                                    <input
+                                        type="checkbox"
+                                        name="toggle"
+                                        id="toggle-notif"
                                         checked={notificationsEnabled}
                                         onChange={() => setNotificationsEnabled(!notificationsEnabled)}
-                                        className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-outline-variant checked:bg-primary checked:right-0 right-4 duration-200" 
+                                        className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-outline-variant checked:bg-primary checked:right-0 right-4 duration-200"
                                     />
                                     <label htmlFor="toggle-notif" className="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-high cursor-pointer"></label>
                                 </div>
                             </div>
-                            
-                            {/* Default Reminder */}
-                            <div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors group cursor-pointer">
-                                <div className="flex items-center gap-md">
-                                    <span className="material-symbols-outlined text-secondary">schedule</span>
-                                    <span className="font-body-lg text-body-lg">Default reminder time</span>
-                                </div>
-                                <div className="flex items-center gap-xs text-secondary">
-                                    <span className="font-body-sm text-body-sm">15 min before</span>
-                                    <span className="material-symbols-outlined text-sm">chevron_right</span>
-                                </div>
-                            </div>
                         </div>
                     </section>
-                    
+
                     {/* Section 2: Account */}
                     <section>
                         <h3 className="font-label-sm text-label-sm text-secondary uppercase tracking-wider mb-md">Account</h3>
@@ -145,7 +150,7 @@ const ProfileScreen = () => {
                             </button>
                         </div>
                     </section>
-                    
+
                     {/* Bottom Action */}
                     <section className="flex justify-center pt-md">
                         <button onClick={handleSignOut} className="text-error font-body-lg text-body-lg hover:underline transition-all py-md px-lg active:opacity-70">

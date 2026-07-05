@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabaseClient';
+import { auth } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import OnboardingSplash from './screens/OnboardingSplash';
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -11,21 +12,24 @@ import ReminderSetup from './screens/ReminderSetup';
 
 // Protected Route — redirects to /auth if not logged in
 const ProtectedRoute = ({ children }) => {
-    const [session, setSession] = useState(undefined); // undefined = still loading
+    const [user, setUser] = useState(undefined); // undefined = still loading
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSession(session));
-        return () => subscription.unsubscribe();
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            setUser(firebaseUser ?? null);
+        });
+        return () => unsubscribe();
     }, []);
 
-    if (session === undefined) {
-        return <div className="min-h-screen bg-surface flex items-center justify-center">
-            <span className="material-symbols-outlined animate-spin text-primary text-4xl">progress_activity</span>
-        </div>;
+    if (user === undefined) {
+        return (
+            <div className="min-h-screen bg-surface flex items-center justify-center">
+                <span className="material-symbols-outlined animate-spin text-primary text-4xl">progress_activity</span>
+            </div>
+        );
     }
 
-    return session ? children : <Navigate to="/auth" replace />;
+    return user ? children : <Navigate to="/auth" replace />;
 };
 
 function App() {
